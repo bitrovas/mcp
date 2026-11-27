@@ -32,6 +32,7 @@ The server sends `Authorization: L402 <macaroon>:<preimage>` to `api.bitrovas.ch
 | `bitrovas_psbtcheck_quote` | `POST /v1/psbtcheck/quote` | Free 21-sat price check + optional PSBT validity pre-check |
 | `bitrovas_formatcheck_quote` | `POST /v1/formatcheck/quote` | Free byte/KB price quote + optional syntax/schema pre-check |
 | `bitrovas_markdown_quote` | `POST /v1/markdown/quote` | Free document type/size/price check (100 sats) |
+| `bitrovas_utxoplan_preview` | `POST /v1/utxoplan/preview` | Free UTXO count, balance, fee scenarios and consolidation cost of a watch-only wallet or address list (no outpoints) |
 | `bitrovas_timestamp_status` | `GET /v1/timestamp/<id>` | Poll OpenTimestamps status (`pending`/`confirmed`), `.ots` proof, and block height |
 | `bitrovas_adresswaechter_info` | `GET /v1/adresswaechter/info` | Service info, limits, and L402 flow for Adress-Waechter |
 | `bitrovas_adresswaechter_status` | `GET /v1/adresswaechter/<id>` or `/status` | Check subscription status by ID, or recover an order via L402 credential |
@@ -50,10 +51,13 @@ The server sends `Authorization: L402 <macaroon>:<preimage>` to `api.bitrovas.ch
 | `bitrovas_adresswaechter_subscribe` | `POST /v1/adresswaechter` | 2100 sats / 90 days | Watch-only Bitcoin mainnet address/xpub monitoring via NIP-17 Nostr DM |
 | `bitrovas_walletaddr` | `POST /v1/walletaddr` | 21 sats | Watch-only address derivation & ownership check from xpub/descriptor |
 | `bitrovas_markdown` | `POST /v1/markdown` | 100 sats | Convert PDF, DOCX, XLSX, PPTX, HTML, or CSV (max 5 MB) to Markdown |
+| `bitrovas_utxoplan` | `POST /v1/utxoplan` | 1200 sats | Watch-only UTXO plan: consolidate / freeze / keep separate, outpoints for coin control, break-even, Markdown plan |
 
 ## Usage
 
-Connect any MCP client that supports Streamable HTTP to:
+### Option 1: Remote Streamable HTTP (Recommended)
+
+Connect any MCP client supporting Streamable HTTP to:
 
 ```text
 https://api.bitrovas.ch/mcp
@@ -72,6 +76,44 @@ Example client configuration (Cursor / Claude):
 }
 ```
 
+### Option 2: Local `stdio` from this directory
+
+Requires Node.js >= 22. There is no published npm package; start the server from this folder:
+
+```bash
+npm ci
+npm run build
+node dist/src/cli.js --stdio
+```
+
+### Option 3: Self-Hosted Streamable HTTP Server
+
+```bash
+npm ci
+npm run build
+node dist/src/cli.js --http --host 127.0.0.1 --port 8101 --path /mcp
+```
+
+Environment variables:
+
+- `BITROVAS_API_URL` (default: `https://api.bitrovas.ch`)
+- `BITROVAS_API_TIMEOUT_MS` (default: `45000`)
+- `MCP_TRANSPORT` (`stdio` or `http`, default: `stdio`)
+- `MCP_HOST` (default: `127.0.0.1`)
+- `MCP_PORT` (default: `8101`)
+- `MCP_PATH` (default: `/mcp`)
+- `MCP_CORS_ORIGINS` (optional comma-separated origin allowlist)
+
+See [`deploy/bitrovas-mcp.service`](./deploy/bitrovas-mcp.service) and [`deploy/Caddyfile.snippet`](./deploy/Caddyfile.snippet) for systemd + Caddy reverse-proxy examples.
+
+## Development & Tests
+
+```bash
+npm ci
+npm run typecheck
+npm test
+```
+
 ## MCP Registry
 
-The server is listed in the official [MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=bitrovas) as `io.github.bitrovas/mcp`.
+`server.json` follows the official MCP Registry schema (`2025-12-11`) and lists only the remote `streamable-http` endpoint (`https://api.bitrovas.ch/mcp`). There is no published npm package.
